@@ -72,12 +72,12 @@ int main(void)
 	ConfigLED2.is_high = false;
 	led2 = new Gpo(ConfigLED2);
 
-	FtmPwm::Config ConfigPWM;
-	ConfigPWM.pin = Pin::Name::kPta8; // need Pin with Ftm functionality
-	ConfigPWM.period = 100000;
-	ConfigPWM.pos_width = 50000;
-	ConfigPWM.alignment = FtmPwm::Config::Alignment::kCenter;
-	FtmPwm pwm(ConfigPWM);
+//	FtmPwm::Config ConfigPWM;
+//	ConfigPWM.pin = Pin::Name::kPta8; // need Pin with Ftm functionality
+//	ConfigPWM.period = 100000;
+//	ConfigPWM.pos_width = 50000;
+//	ConfigPWM.alignment = FtmPwm::Config::Alignment::kCenter;
+//	FtmPwm pwm(ConfigPWM);
 
 	Gpi::Config ConfigGPI;
 	ConfigGPI.pin = Pin::Name::kPta9;
