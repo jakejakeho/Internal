@@ -10,9 +10,9 @@
 #include <cstring>
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
-#include <libbase/k60/gpio.h>
-#include <libbase/k60/ftm_pwm.h>
-#include <libbase/k60/pit.h>
+#include <libsc/led.h>
+
+
 namespace libbase
 {
 	namespace k60
@@ -33,69 +33,38 @@ using libsc::System;
 using namespace libsc;
 using namespace libbase::k60;
 
-Gpo *led1;
-Gpo *led2;
-
-void GPIListener(Gpi *gpi) {
-	if (gpi->Get()) { // get state of GPI
-		// if high
-		led1->Turn();
-	} else {
-		// if low
-		led1->Turn();
-	}
-}
-
-void Job(Pit*){
-/*code which will execute periodically*/
-	led2->Turn();
-}
-
 
 int main(void)
 {
 	System::Init();
 
-	//type your code here
-	Gpo::Config ConfigLED0;
-	ConfigLED0.pin = Pin::Name::kPta14;
-	ConfigLED0.is_high = false;
-	Gpo led0(ConfigLED0);
+	Led::Config led_config;
+	led_config.id = 0;
+	Led led0(led_config);
 
-	Gpo::Config ConfigLED1;
-	ConfigLED1.pin = Pin::Name::kPta15;
-	ConfigLED1.is_high = false;
-	led1 = new Gpo(ConfigLED1);
+	Led::Config led_config1;
+	led_config1.id = 1;
+	Led led1(led_config1);
 
-	Gpo::Config ConfigLED2;
-	ConfigLED2.pin = Pin::Name::kPta16;
-	ConfigLED2.is_high = false;
-	led2 = new Gpo(ConfigLED2);
+	Led::Config led_config2;
+	led_config2.id = 2;
+	Led led2(led_config2);
 
-//	FtmPwm::Config ConfigPWM;
-//	ConfigPWM.pin = Pin::Name::kPta8; // need Pin with Ftm functionality
-//	ConfigPWM.period = 100000;
-//	ConfigPWM.pos_width = 50000;
-//	ConfigPWM.alignment = FtmPwm::Config::Alignment::kCenter;
-//	FtmPwm pwm(ConfigPWM);
+	Led::Config led_config3;
+	led_config3.id = 3;
+	Led led3(led_config3);
 
-	Gpi::Config ConfigGPI;
-	ConfigGPI.pin = Pin::Name::kPta9;
-	ConfigGPI.interrupt = Pin::Config::Interrupt::kBoth;
-	ConfigGPI.config.set(Pin::Config::kPassiveFilter);
-	ConfigGPI.isr = GPIListener;
-	Gpi gpi(ConfigGPI);
-
-	Pit::Config pitConfig;
-	pitConfig.channel = 0;
-	pitConfig.count = 75000*50; //job executed once per 250ms
-	pitConfig.isr = Job;
-	Pit pit(pitConfig);
-
-    while (true){
-    	if(System::Time() % 50 == 0)
-    		led0.Turn();
-    	System::DelayMs(1);
-    }
+	while (true){
+		if(System::Time() % 250 == 0){
+			led0.Switch();
+			System::DelayMs(1);
+			led1.Switch();
+			System::DelayMs(1);
+			led2.Switch();
+			System::DelayMs(1);
+			led3.Switch();
+			System::DelayMs(1);
+		}
+	}
 	return 0;
 }
