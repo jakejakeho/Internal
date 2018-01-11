@@ -78,8 +78,7 @@ int main(void)
 
 
 	// Motor init
-	DirMotor motor(Config::GetMotorConfig());
-	motor.SetClockwise(true);
+	AlternateMotor motor(Config::GetMotorConfig());
 	motor.SetPower(100);
 
 	// Servo init

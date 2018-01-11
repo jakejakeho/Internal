@@ -22,7 +22,7 @@
 #include "libbase/k60/pit.h"
 #include "libbase/k60/uart.h"
 #include "libsc/k60/ov7725.h"
-#include "libsc/dir_motor.h"
+#include "libsc/alternate_motor.h"
 #include "libsc/servo.h"
 
 using libsc::Led;
@@ -37,7 +37,7 @@ using libbase::k60::Pit;
 using libbase::k60::Uart;
 using libsc::k60::Ov7725;
 using libsc::k60::Ov7725Configurator;
-using libsc::DirMotor;
+using libsc::AlternateMotor;
 using libsc::Servo;
 
 class Config{
@@ -100,10 +100,9 @@ public:
     	return config;
     }
 
-    static DirMotor::Config GetMotorConfig(){
-    	DirMotor::Config config;
+    static AlternateMotor::Config GetMotorConfig(){
+    	AlternateMotor::Config config;
     	config.id = 0;
-    	config.multiplier = 100;
     	return config;
     }
 
