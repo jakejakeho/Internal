@@ -79,11 +79,11 @@ int main(void)
 
 	// Motor init
 	AlternateMotor motor(Config::GetMotorConfig());
-	motor.SetPower(100);
+	motor.SetPower(100); // 10 %
 
 	// Servo init
 	Servo servo(Config::GetServoConfig());
-	int servoValue = 900;
+	int servoValue = 900; // middle
 	bool toRight = true;
 
 	// Camera init
