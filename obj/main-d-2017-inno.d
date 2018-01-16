@@ -1,4 +1,5 @@
 obj/main-d-2017-inno.o: src/main.cpp \
+ C:\Users\Jake\workspace\libsccc\inc/libbase/misc_types.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/mcg.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/mcg_c.h \
  C:\Users\Jake\workspace\libsccc\inc/libsc/system.h \
@@ -11,7 +12,6 @@ obj/main-d-2017-inno.o: src/main.cpp \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/misc_utils.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/misc_utils.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/misc_utils_c.h \
- C:\Users\Jake\workspace\libsccc\inc/libbase/misc_types.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/log.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/misc_utils_c.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/pinout_macros.h \
@@ -40,7 +40,7 @@ obj/main-d-2017-inno.o: src/main.cpp \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/soft_sccb_master.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/soft_i2c_master.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/i2c_master_interface.h \
- C:\Users\Jake\workspace\libsccc\inc/libsc/dir_motor.h \
+ C:\Users\Jake\workspace\libsccc\inc/libsc/alternate_motor.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/pinout_macros.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/ftm_pwm.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/pwm.h \

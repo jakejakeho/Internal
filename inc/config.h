@@ -24,6 +24,7 @@
 #include "libsc/k60/ov7725.h"
 #include "libsc/alternate_motor.h"
 #include "libsc/servo.h"
+#include "libsc/battery_meter.h"
 
 using libsc::Led;
 using libsc::Lcd;
@@ -39,6 +40,7 @@ using libsc::k60::Ov7725;
 using libsc::k60::Ov7725Configurator;
 using libsc::AlternateMotor;
 using libsc::Servo;
+using libsc::BatteryMeter;
 
 class Config{
 public:
@@ -96,6 +98,7 @@ public:
     	config.id = 0;
     	config.w = 80;
     	config.h = 60;
+    	//config.contrast = 64;
     	config.fps = Ov7725Configurator::Config::Fps::kHigh;
     	return config;
     }
@@ -112,6 +115,12 @@ public:
     	config.period = 20000;
     	config.max_pos_width = 2100;
     	config.min_pos_width = 900;
+    	return config;
+    }
+
+    static BatteryMeter::Config GetBatteryMeterConfig(){
+    	BatteryMeter::Config config;
+    	config.voltage_ratio = 2.0/3.0;
     	return config;
     }
 };
