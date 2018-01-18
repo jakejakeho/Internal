@@ -311,7 +311,7 @@ uint8_t numOfLeftEdge(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
-	uint8_t threshold = 10;
+	uint8_t threshold = 5;
 	for(int j = imageHeight -1; j >= 1; j--){
 		if(hasLeftEdge(j) && !lastHasEdge){
 			lastHasEdge = true;
@@ -341,7 +341,7 @@ uint8_t numOfRightEdge(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
-	uint8_t threshold = 10;
+	uint8_t threshold = 5;
 	for(int j = imageHeight -1; j >= 1; j--){
 		if(hasRightEdge(j) && !lastHasEdge){
 			lastHasEdge = true;
@@ -401,7 +401,7 @@ int numOfRCorner(){
 			}
 		}
 		else if(rCounter == 3 && rCorner >= 3) {
-			if(System::Time() - lastRCornerTime >= 100){
+			if(System::Time() - lastRCornerTime >= 500){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
@@ -409,7 +409,7 @@ int numOfRCorner(){
 	}else{
 		lastHasRCorner = false;
 		rCounter = 0;
-		if(System::Time() - lastRCornerTime > 8000 && rCorner < 5){
+		if(System::Time() - lastRCornerTime > 5000 && rCorner < 5){
 			rCorner = 0;
 		}
 	}
