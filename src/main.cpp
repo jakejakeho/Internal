@@ -16,6 +16,7 @@
 #include <libsc/system.h>
 #include <libsc/led.h>
 #include "config.h"
+#include "servoPID.h"
 
 namespace libbase
 {
@@ -41,12 +42,17 @@ using namespace libbase::k60;
 // constant variable
 static const Byte imageHeight = 60;
 static const Byte imageWidth = 80;
-static const Byte middleHeight = imageHeight / 2;
-static const Byte bottomHeight = imageHeight - 1;
+
 static bool image[imageHeight][imageWidth];
 static bool edgeImage[imageHeight][imageWidth];
 static bool cornerImage[imageHeight][imageWidth];
-static int numOfCorner;
+static Byte midPoint[imageHeight];
+static int numOfCorner = 0;
+static bool lastHasRCorner = false;
+static int rCounter = 0;
+static int rCorner = 0;
+static int circleCounter = 0;
+static uint32_t lastRCornerTime = 0;
 // function prototype
 void imageRead(const Byte* buff);
 void edgeDetection();
@@ -141,84 +147,275 @@ float getAngle(){
 }
 
 void cornerDetection(void){
+	uint8_t kernel[5][5] = {{0,-1,2,1,0},
+							{-1,-2,4,2,1},
+							{-2,-4,8,4,2},
+							{1,2,-4,-2,-1},
+							{0,1,-2,-1,0}};
+	uint8_t offset = 5/2;
+	uint8_t min = 18;
+	uint8_t max = 24;
+	numOfCorner = 0;
+	for(int j = imageHeight - offset; j >= offset; j--){
+		for(int i = offset; i <imageWidth - offset; i++){
+			if(edgeImage[j][i]){
+				int temp = 0;
+				for(int y = 0 - offset; y <= offset; y++){
+					for(int x = 0 - offset; x <= offset; x++){
+						temp += edgeImage[j + y][i + x] * kernel[offset + y][offset + x];
+					}
+				}
+				if(temp >= min && temp <= max){
+					edgeImage[j][i] = 1;
+					numOfCorner++;
+				}else{
+					edgeImage[j][i] = 0;
+				}
+
+			}
+		}
+	}
+
+}
+
+void cornerDetection2(){
 	int differenceTh = 25;
-	int geometricalTh = 18;
-	int rowRadius[] = { 1, 2, 3, 3, 3, 2, 1 };
-	int size1 = 3;
-	int susanMap[imageHeight][imageWidth] = {0};
-	for (int x = size1; x < imageHeight - size1; x++) {
-		 for (int y = size1; y < imageWidth - size1; y++) {
-			 int nucleusValue = (int)image[x][y];
-			 int usan = 0;
-			 int cx = 0, cy = 0;
-			 for (int i = -size1; i <= size1; i++) {
-				 int r = rowRadius[i + size1];
-				 for ( int j = -r; j <= r; j++ ){
-					 int gray = image[x+i][y+j];
-					 // differenceThreshold
-					 if ( abs( nucleusValue - gray ) <= differenceTh ){
-						 usan++;
-						 cx += x + j;
-						 cy += y + i;
+		int geometricalTh = 18;
+		int rowRadius[] = { 1, 2, 3, 3, 3, 2, 1 };
+		uint8_t susanMap[imageHeight][imageWidth] = {0};
+		 for (int x = 3; x < imageHeight - 3; x++) {
+			 for (int y = 3; y < imageWidth - 3; y++) {
+				 int nucleusValue = (int)image[x][y];
+				 int usan = 0;
+				 int cx = 0, cy = 0;
+				 for (int i = -3; i <= 3; i++) {
+					 int r = rowRadius[i + 3];
+					 for ( int j = -r; j <= r; j++ ){
+						 int gray = image[x+i][y+j];
+						 // differenceThreshold
+						 if ( abs( nucleusValue - gray ) <= differenceTh ){
+							 usan++;
+							 cx += x + j;
+							 cy += y + i;
+						 }
 					 }
 				 }
-			 }
+
 				 // check usan size
-			 if ( usan < geometricalTh ){
-				 cx /= usan;
-				 cy /= usan;
-				 if ( ( x != cx ) || ( y != cy ) ){
-					 usan = ( geometricalTh - usan );
+				 if ( usan < geometricalTh ){
+					 cx /= usan;
+					 cy /= usan;
+					 if ( ( x != cx ) || ( y != cy ) ){
+						 usan = ( geometricalTh - usan );
+					 }
+					 else{
+						 usan = 0;
+					 }
 				 }
 				 else{
 					 usan = 0;
 				 }
-			 }
-			 else{
-				 usan = 0;
-			 }
+
 				 // usan = ( usan < geometricalThreshold ) ? ( geometricalThreshold - usan ) : 0;
-			 susanMap[x][y] = usan;
+				 susanMap[x][y] = usan;
+			 }
 		 }
-	 }
+
 		 // for each row
-	 int size2 = 3;
-	 for ( int x = size2; x < imageHeight - size2; x++ ){
-		 // for each pixel
-		 for ( int y = size2; y < imageWidth - size2; y++ ){
-			 int currentValue = susanMap[x][y];
+		 for ( int x = 2; x < imageHeight - 2; x++ ){
+			 // for each pixel
+			 for ( int y = 2; y < imageWidth - 2; y++ ){
+				 int currentValue = susanMap[x][y];
+
 				 // for each windows' row
-			 for ( int i = -size2; ( currentValue != 0 ) && ( i <= 2 ); i++ ){
-				 // for each windows' pixel
-				 for ( int j = -size2; j <= size2; j++ ){
-					 if ( susanMap[x+i][y+j] > currentValue ){
-						 currentValue = 0;
-						 break;
+				 for ( int i = -2; ( currentValue != 0 ) && ( i <= 2 ); i++ ){
+					 // for each windows' pixel
+					 for ( int j = -2; j <= 2; j++ ){
+						 if ( susanMap[x+i][y+j] > currentValue ){
+							 currentValue = 0;
+							 break;
+						 }
 					 }
 				 }
-			 }
+
 				 // check if this point is really interesting
-			 // check if all the pixel around is all white or black
-			 if ( currentValue != 0){
-				cornerImage[y][x] = 1;
-				numOfCorner++;
-			 }else{
-				 cornerImage[y][x] = 0;
+				 // check if all the pixel around is all white or black
+				 if ( currentValue != 0){
+						cornerImage[x][y] = 1;
+						numOfCorner++;
+				 }else{
+					 cornerImage[x][y] = 0;
+				 }
 			 }
 		 }
-	 }
 }
 
 void cornerDisplay(St7735r* lcd){
 	for(int j = imageHeight - 1; j >= 1; j--){
 		for(int i = 1; i < imageWidth - 1; i++){
 			if(cornerImage[j][i]){
-				lcd->SetRegion(Lcd::Rect(i,j,10,10));
+				lcd->SetRegion(Lcd::Rect(i,j,15,15));
 				lcd->FillColor(lcd->kGreen);
 			}
 		}
 	}
 }
+
+void findMidPoint(){
+	for(int j = 0; j < imageHeight; j++){
+		uint8_t left = 0;
+		uint8_t right = imageWidth - 1;
+
+		// find x value of left edge
+		for(int i = imageWidth / 2; i >= 0; i--){
+			if(edgeImage[j][i]){
+				left = i;
+				break;
+			}
+		}
+
+		// find x value of right edge
+		for(int i = imageWidth / 2; i < imageWidth; i++){
+			if(edgeImage[j][i]){
+				right = i;
+				break;
+			}
+		}
+		if(left != 0 && right != imageWidth - 1) {
+			midPoint[j] = (left + right) / 2;
+		}else{
+			midPoint[j] = 81;
+		}
+	}
+}
+
+void midPointDisplay(St7735r *lcd){
+	for(int j = imageHeight - 1; j >= 1; j--){
+		if(midPoint[j] != 81){
+			lcd->SetRegion(Lcd::Rect(midPoint[j], j, 1, 1));
+			lcd->FillColor(lcd->kGreen);
+		}
+	}
+}
+
+bool hasLeftEdge(uint8_t height){
+	for(int i = 0; i <= imageWidth / 2; i++){
+		if(edgeImage[height][i]){
+			return true;
+		}
+	}
+	return false;
+}
+
+uint8_t numOfLeftEdge(){
+	bool lastHasEdge = false;
+	uint8_t numOfMidLine = 0;
+	uint8_t numOfPixel = 0;
+	uint8_t threshold = 10;
+	for(int j = imageHeight -1; j >= 1; j--){
+		if(hasLeftEdge(j) && !lastHasEdge){
+			lastHasEdge = true;
+			numOfPixel++;
+		}else if(!hasLeftEdge(j) && lastHasEdge){
+			lastHasEdge = false;
+			numOfPixel = 0;
+		}else if(hasLeftEdge(j) && lastHasEdge){
+			numOfPixel++;
+			if(numOfPixel == threshold)
+				numOfMidLine++;
+		}
+	}
+	return numOfMidLine;
+}
+
+bool hasRightEdge(uint8_t height){
+	for(int i = imageWidth - 1; i >= imageWidth / 2; i--){
+		if(edgeImage[height][i]){
+			return true;
+		}
+	}
+	return false;
+}
+
+uint8_t numOfRightEdge(){
+	bool lastHasEdge = false;
+	uint8_t numOfMidLine = 0;
+	uint8_t numOfPixel = 0;
+	uint8_t threshold = 10;
+	for(int j = imageHeight -1; j >= 1; j--){
+		if(hasRightEdge(j) && !lastHasEdge){
+			lastHasEdge = true;
+			numOfPixel++;
+		}else if(!hasRightEdge(j) && lastHasEdge){
+			lastHasEdge = false;
+			numOfPixel = 0;
+		}else if(hasRightEdge(j) && lastHasEdge){
+			numOfPixel++;
+			if(numOfPixel == threshold)
+				numOfMidLine++;
+		}
+	}
+	return numOfMidLine;
+}
+
+uint8_t numOfMidLine(){
+	bool lastHasEdge = false;
+	uint8_t numOfMidLine = 0;
+	uint8_t numOfPixel = 0;
+	uint8_t threshold = 10;
+	for(int j = imageHeight -1; j >= 1; j--){
+		if(midPoint[j] != 81 && !lastHasEdge){
+			lastHasEdge = true;
+			numOfPixel++;
+		}else if(midPoint[j] == 81 && lastHasEdge){
+			lastHasEdge = false;
+			numOfPixel = 0;
+		}else if(midPoint[j] != 81 && lastHasEdge){
+			numOfPixel++;
+			if(numOfPixel == threshold)
+				numOfMidLine++;
+		}
+	}
+	return numOfMidLine;
+}
+
+int numOfRCorner(){
+	if(numOfLeftEdge() == 1 && numOfRightEdge() == 0 && numOfMidLine() == 0){
+		if(!lastHasRCorner)
+			lastHasRCorner = true;
+		rCounter++;
+		if(rCounter == 8 && rCorner == 0){
+			lastRCornerTime = System::Time();
+			rCorner++;
+		}
+		else if(rCounter == 2 && rCorner == 1){
+			if(System::Time() - lastRCornerTime >= 1000){
+				lastRCornerTime = System::Time();
+				rCorner++;
+			}
+		}
+		else if(rCounter == 2 && rCorner == 2) {
+			if(System::Time() - lastRCornerTime >= 3500){
+				lastRCornerTime = System::Time();
+				rCorner++;
+			}
+		}
+		else if(rCounter == 3 && rCorner >= 3) {
+			if(System::Time() - lastRCornerTime >= 100){
+				lastRCornerTime = System::Time();
+				rCorner++;
+			}
+		}
+	}else{
+		lastHasRCorner = false;
+		rCounter = 0;
+		if(System::Time() - lastRCornerTime > 8000 && rCorner < 5){
+			rCorner = 0;
+		}
+	}
+	return rCorner;
+}
+
 
 int main(void)
 {
@@ -261,22 +458,23 @@ int main(void)
 
 	// Motor init
 	AlternateMotor motor(Config::GetMotorConfig());
-	motor.SetPower(90); // 10 %
+	motor.SetPower(85); // 10 %
 	motor.SetClockwise(true);
 
 	// Servo init
 	Servo servo(Config::GetServoConfig());
-	servo.SetDegree(0);
 	System::DelayMs(500);
+
+	servoPID sPID(1.44,0.0,0.0048);
+
+	// Battery Meter init
+	//BatteryMeter bMeter(Config::GetBatteryMeterConfig());
 
 	// Camera init
 	Ov7725 camera(Config::GetCameraConfig());
 	camera.Start();
 
-	// Battery Meter init
-	//BatteryMeter bMeter(Config::GetBatteryMeterConfig());
-
-
+	int lastrCorner = 0;
 	while (true){
 		if(System::Time() != previousTime){
 			previousTime = System::Time();
@@ -286,23 +484,53 @@ int main(void)
 				const Byte* buff = camera.LockBuffer();
 				imageRead(buff);
 				camera.UnlockBuffer();
-				lcd.SetRegion(Lcd::Rect(0,0,imageWidth,imageHeight));
-				lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
+//				lcd.SetRegion(Lcd::Rect(0,0,imageWidth,imageHeight));
+//				lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
 				edgeDetection();
-				edgeDisplay(&lcd);
-//				cornerDetection();
+//				edgeDisplay(&lcd);
+//				cornerDetection2();
 //				cornerDisplay(&lcd);
+				findMidPoint();
+//				midPointDisplay(&lcd);
 				char c[15];
 				lcd.SetRegion(Lcd::Rect(0,80,100,15));
+
+
+				float angle = sPID.getPID(getAngle(), previousTime);
+				sprintf(c,"angle: %f!", angle);
+				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,95,100,15));
-				float temp = getAngle() * 1.48;
-				sprintf(c,"angle: %f!", temp);
+				sprintf(c,"LEdge: %d", numOfLeftEdge());
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,110,100,15));
-				sprintf(c,"numofC: %d", numOfCorner);
+				sprintf(c,"REdge: %d", numOfRightEdge());
 				writer.WriteBuffer(c,15);
-				servo.SetDegree((uint16_t)((temp * 10) + 825));
-				//servo.SetDegree((uint16_t)800);
+				lcd.SetRegion(Lcd::Rect(0,125,100,15));
+				sprintf(c,"MLine: %d", numOfMidLine());
+				writer.WriteBuffer(c,15);
+				lcd.SetRegion(Lcd::Rect(0,140,100,15));
+				sprintf(c,"Rcorner: %d",numOfRCorner());
+				writer.WriteBuffer(c,15);
+				servo.SetDegree((uint16_t)((angle * 10) + 790));
+
+				if(rCorner == 2){
+					if(circleCounter >= 3 && circleCounter <= 10)
+						servo.SetDegree((uint16_t) 790 - 550);
+					circleCounter++;
+				}else if (rCorner == 3){
+					if(circleCounter <= 8)
+						servo.SetDegree((uint16_t) 170);
+					circleCounter++;
+				}else if (rCorner == 4){
+					if(circleCounter <= 10)
+						servo.SetDegree((uint16_t) 790 + 250);
+					circleCounter++;
+				}
+				if(lastrCorner != rCorner){
+					lastrCorner = rCorner;
+					circleCounter = 0;
+				}
+				//servo.SetDegree((uint16_t)790);
 			}
 		}
 	}

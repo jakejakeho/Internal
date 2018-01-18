@@ -46,4 +46,5 @@ obj/main-d-2017-inno.o: src/main.cpp \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/pwm.h \
  C:\Users\Jake\workspace\libsccc\inc/libsc/motor.h \
  C:\Users\Jake\workspace\libsccc\inc/libsc/servo.h \
- C:\Users\Jake\workspace\libsccc\inc/libbase/k60/soft_pwm.h
+ C:\Users\Jake\workspace\libsccc\inc/libbase/k60/soft_pwm.h \
+ inc/servoPID.h
