@@ -25,6 +25,7 @@
 #include "libsc/alternate_motor.h"
 #include "libsc/servo.h"
 #include "libsc/battery_meter.h"
+#include "libsc/button.h"
 
 using libsc::Led;
 using libsc::Lcd;
@@ -41,6 +42,7 @@ using libsc::k60::Ov7725Configurator;
 using libsc::AlternateMotor;
 using libsc::Servo;
 using libsc::BatteryMeter;
+using libsc::Button;
 
 class Config{
 public:
@@ -122,6 +124,15 @@ public:
     	BatteryMeter::Config config;
     	config.voltage_ratio = 0.4;
     	return config;
+    }
+
+    static Button::Config GetButtonConfig(Button::Listener listener){
+    	Button::Config config;
+    	config.id = 0;
+    	config.is_active_low = true;
+    	config.listener = listener;
+    	config.listener_trigger = Button::Config::Trigger::kUp;
+
     }
 };
 
