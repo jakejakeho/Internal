@@ -42,6 +42,7 @@ using namespace libbase::k60;
 // constant variable
 static const Byte imageHeight = 60;
 static const Byte imageWidth = 80;
+static const uint16_t middleServo = 790;
 
 static bool image[imageHeight][imageWidth];
 static bool edgeImage[imageHeight][imageWidth];
@@ -389,7 +390,7 @@ int numOfRCorner(){
 			rCorner++;
 		}
 		else if(rCounter == 2 && rCorner == 1){
-			if(System::Time() - lastRCornerTime >= 1000){
+			if(System::Time() - lastRCornerTime >= 500){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
@@ -409,7 +410,7 @@ int numOfRCorner(){
 	}else{
 		lastHasRCorner = false;
 		rCounter = 0;
-		if(System::Time() - lastRCornerTime > 5000 && rCorner < 5){
+		if(System::Time() - lastRCornerTime > 4000 && rCorner < 5){
 			rCorner = 0;
 		}
 	}
@@ -488,8 +489,6 @@ int main(void)
 //				lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
 				edgeDetection();
 //				edgeDisplay(&lcd);
-//				cornerDetection2();
-//				cornerDisplay(&lcd);
 				findMidPoint();
 //				midPointDisplay(&lcd);
 				char c[15];
@@ -511,26 +510,26 @@ int main(void)
 				lcd.SetRegion(Lcd::Rect(0,140,100,15));
 				sprintf(c,"Rcorner: %d",numOfRCorner());
 				writer.WriteBuffer(c,15);
-				servo.SetDegree((uint16_t)((angle * 10) + 790));
+				servo.SetDegree((uint16_t)((angle * 10) + middleServo));
 
 				if(rCorner == 2){
 					if(circleCounter >= 3 && circleCounter <= 10)
-						servo.SetDegree((uint16_t) 790 - 550);
+						servo.SetDegree((uint16_t) middleServo - 550);
 					circleCounter++;
 				}else if (rCorner == 3){
 					if(circleCounter <= 8)
 						servo.SetDegree((uint16_t) 170);
 					circleCounter++;
 				}else if (rCorner == 4){
-					if(circleCounter <= 10)
-						servo.SetDegree((uint16_t) 790 + 250);
+					if(circleCounter <= 12)
+						servo.SetDegree((uint16_t) middleServo + 325);
 					circleCounter++;
 				}
 				if(lastrCorner != rCorner){
 					lastrCorner = rCorner;
 					circleCounter = 0;
 				}
-				//servo.SetDegree((uint16_t)790);
+				//servo.SetDegree((uint16_t)middleServo);
 			}
 		}
 	}
