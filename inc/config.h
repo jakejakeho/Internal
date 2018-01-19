@@ -26,6 +26,7 @@
 #include "libsc/servo.h"
 #include "libsc/battery_meter.h"
 #include "libsc/button.h"
+#include "libsc/dir_encoder.h"
 
 using libsc::Led;
 using libsc::Lcd;
@@ -43,6 +44,7 @@ using libsc::AlternateMotor;
 using libsc::Servo;
 using libsc::BatteryMeter;
 using libsc::Button;
+using libsc::DirEncoder;
 
 class Config{
 public:
@@ -133,6 +135,12 @@ public:
     	config.listener = listener;
     	config.listener_trigger = Button::Config::Trigger::kUp;
 
+    }
+
+    static DirEncoder::Config GetEncoderConfig(){
+    	DirEncoder::Config config;
+    	config.id = 0;
+    	return config;
     }
 };
 

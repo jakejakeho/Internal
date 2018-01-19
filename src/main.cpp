@@ -17,6 +17,7 @@
 #include <libsc/led.h>
 #include "config.h"
 #include "servoPID.h"
+#include "motorPID.h"
 
 namespace libbase
 {
@@ -312,7 +313,7 @@ uint8_t numOfLeftEdge(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
-	uint8_t threshold = 5;
+	uint8_t threshold = 8;
 	for(int j = imageHeight -1; j >= 1; j--){
 		if(hasLeftEdge(j) && !lastHasEdge){
 			lastHasEdge = true;
@@ -342,7 +343,7 @@ uint8_t numOfRightEdge(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
-	uint8_t threshold = 5;
+	uint8_t threshold = 12;
 	for(int j = imageHeight -1; j >= 1; j--){
 		if(hasRightEdge(j) && !lastHasEdge){
 			lastHasEdge = true;
@@ -363,7 +364,7 @@ uint8_t numOfMidLine(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
-	uint8_t threshold = 10;
+	uint8_t threshold = 12;
 	for(int j = imageHeight -1; j >= 1; j--){
 		if(midPoint[j] != 81 && !lastHasEdge){
 			lastHasEdge = true;
@@ -385,18 +386,18 @@ int numOfRCorner(){
 		if(!lastHasRCorner)
 			lastHasRCorner = true;
 		rCounter++;
-		if(rCounter == 8 && rCorner == 0){
+		if(rCounter == 4 && rCorner == 0){
 			lastRCornerTime = System::Time();
 			rCorner++;
 		}
-		else if(rCounter == 2 && rCorner == 1){
+		else if(rCounter == 4 && rCorner == 1){
 			if(System::Time() - lastRCornerTime >= 500){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
 		}
 		else if(rCounter == 2 && rCorner == 2) {
-			if(System::Time() - lastRCornerTime >= 3500){
+			if(System::Time() - lastRCornerTime >= 2500){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
@@ -410,7 +411,7 @@ int numOfRCorner(){
 	}else{
 		lastHasRCorner = false;
 		rCounter = 0;
-		if(System::Time() - lastRCornerTime > 4000 && rCorner < 4){
+		if(System::Time() - lastRCornerTime > 6000 && rCorner < 4){
 			rCorner = 0;
 		}
 	}
@@ -421,6 +422,7 @@ int numOfRCorner(){
 int main(void)
 {
 	System::Init();
+
 	uint32_t previousTime = 0;
 
 
@@ -459,22 +461,29 @@ int main(void)
 
 	// Motor init
 	AlternateMotor motor(Config::GetMotorConfig());
-	motor.SetPower(85); // 10 %
+	motor.SetPower(0); // 10 %
 	motor.SetClockwise(true);
+//	motorPID mPID(0.21, 0.000012, 0.00000007);
+	motorPID mPID(0.265, 0.0, 0.01);
 
 	// Servo init
 	Servo servo(Config::GetServoConfig());
-	System::DelayMs(500);
-	servoPID sPID(1.44,0.0,0.0048);
+	System::DelayMs(470);
+	servoPID sPID(1.35,0.0,0.00);
 
 	// Battery Meter init
 	BatteryMeter bMeter(Config::GetBatteryMeterConfig());
 
+
+
 	// Button init
-	Button button(Config::GetButtonConfig(Button::Listener([](const uint8_t id){
-		if(id == 0)
-			clockwise = !clockwise;
-	})));
+//	Button button(Config::GetButtonConfig(Button::Listener([](const uint8_t id){
+//		if(id == 0)
+//			clockwise = !clockwise;
+//	})));
+
+	// Encoder init
+	DirEncoder dirEncoder(Config::GetEncoderConfig());
 
 	// Camera init
 	Ov7725 camera(Config::GetCameraConfig());
@@ -490,44 +499,51 @@ int main(void)
 				const Byte* buff = camera.LockBuffer();
 				imageRead(buff);
 				camera.UnlockBuffer();
-//				lcd.SetRegion(Lcd::Rect(0,0,imageWidth,imageHeight));
-//				lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
+				bool enableDisplay = false;
 				char c[15];
-				lcd.SetRegion(Lcd::Rect(imageWidth + 1, 0, 128 - imageHeight, 15));
-				sprintf(c, "V:%f", bMeter.GetVoltage());
-				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(imageWidth + 1, 15, 128 - imageHeight, 15));
-				sprintf(c, "CLK:%d", clockwise);
 				edgeDetection();
-//				edgeDisplay(&lcd);
 				findMidPoint();
-//				midPointDisplay(&lcd);
+				if(enableDisplay){
+					lcd.SetRegion(Lcd::Rect(0,0,imageWidth,imageHeight));
+					lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
+					edgeDisplay(&lcd);
+					midPointDisplay(&lcd);
+				}
 
 
 				float angle = sPID.getPID(getAngle(), previousTime);
-				lcd.SetRegion(Lcd::Rect(0,80,128,15));
+				lcd.SetRegion(Lcd::Rect(0,60,128,15));
+				sprintf(c,"voltage: %f", bMeter.GetVoltage());
+				writer.WriteBuffer(c,15);
+				lcd.SetRegion(Lcd::Rect(0,75,128,15));
 				sprintf(c,"angle: %f!", angle);
 				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,95,128,15));
-				sprintf(c,"LEdge: %d", numOfLeftEdge());
+				lcd.SetRegion(Lcd::Rect(0,90,128,15));
+				sprintf(c,"L:%d R:%d M:%d", numOfLeftEdge(), numOfRightEdge(), numOfMidLine());
 				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,110,128,15));
-				sprintf(c,"REdge: %d", numOfRightEdge());
+				lcd.SetRegion(Lcd::Rect(0,105,128,15));
+				uint16_t power = mPID.getPID(1000, &dirEncoder);
+				sprintf(c,"Motor: %d", power);
+				if(power > 350)
+					power = 350;
 				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,125,128,15));
-				sprintf(c,"MLine: %d", numOfMidLine());
+				lcd.SetRegion(Lcd::Rect(0,120,128,15));
+				sprintf(c,"Encoder: %d", dirEncoder.GetCount());
 				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,140,128,15));
+				lcd.SetRegion(Lcd::Rect(0,135,128,15));
 				if(clockwise){
-					sprintf(c,"Rcorner: %d",numOfRCorner());
+					sprintf(c,"Corner: %d",numOfRCorner());
 					numOfCorner = rCorner;
 				}//else {
 //					sprintf(c,"Lcorner: %d",numOfRCorner());
 //					numOfCorner = lCorner;
 //				}
 				writer.WriteBuffer(c,15);
-				servo.SetDegree((uint16_t)((angle * 10) + middleServo));
 
+				servo.SetDegree((uint16_t)((angle * 10) + middleServo));
+				if(numOfCorner == 1){
+					power = mPID.getPID(250, &dirEncoder);
+				}
 				if(numOfCorner == 2){
 					if(circleCounter >= 3 && circleCounter <= 10)
 						servo.SetDegree((uint16_t) middleServo - 550);
@@ -538,7 +554,7 @@ int main(void)
 					circleCounter++;
 				}else if (numOfCorner == 4){
 					if(circleCounter <= 12)
-						servo.SetDegree((uint16_t) middleServo + 325);
+						servo.SetDegree((uint16_t) middleServo + 375);
 					circleCounter++;
 				}
 				if(lastrCorner != numOfCorner){
@@ -546,6 +562,7 @@ int main(void)
 					circleCounter = 0;
 				}
 //				servo.SetDegree((uint16_t)middleServo);
+				motor.SetPower(power);
 			}
 		}
 	}

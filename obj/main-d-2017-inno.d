@@ -47,4 +47,10 @@ obj/main-d-2017-inno.o: src/main.cpp \
  C:\Users\Jake\workspace\libsccc\inc/libsc/motor.h \
  C:\Users\Jake\workspace\libsccc\inc/libsc/servo.h \
  C:\Users\Jake\workspace\libsccc\inc/libbase/k60/soft_pwm.h \
- C:\Users\Jake\workspace\libsccc\inc/libsc/button.h inc/servoPID.h
+ C:\Users\Jake\workspace\libsccc\inc/libsc/button.h \
+ C:\Users\Jake\workspace\libsccc\inc/libsc/dir_encoder.h \
+ C:\Users\Jake\workspace\libsccc\inc/libsc/encoder.h \
+ C:\Users\Jake\workspace\libsccc\inc/libbase/k60/soft_quad_decoder.h \
+ C:\Users\Jake\workspace\libsccc\inc/libbase/k60/quad_decoder_interface.h \
+ C:\Users\Jake\workspace\libsccc\inc/libbase/k60/ftm_quad_decoder.h \
+ inc/servoPID.h inc/motorPID.h
