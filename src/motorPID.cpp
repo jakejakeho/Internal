@@ -7,11 +7,11 @@
 
 #include "motorPID.h"
 
-uint16_t motorPID::getPID(int32_t desiredVelocity , DirEncoder* encoder){
+float motorPID::getPID(int32_t desiredVelocity, int32_t encoderCount){
 	dTime = System::Time() - lastTime;
 	encoder->Update();
-	currentError = desiredVelocity + encoder->GetCount();
-	uint16_t output = currentError * kP + accumlateError * kI * dTime + ((currentError - lastError) * kD) / (dTime);
+	currentError = desiredVelocity + encoderCount;
+	float output = ((currentError) * kP) + (accumlateError) * kI * (dTime) + ((currentError - lastError) * kD) / (dTime);
 
 	lastTime = System::Time();
 	accumlateError += currentError;

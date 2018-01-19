@@ -344,7 +344,7 @@ uint8_t numOfRightEdge(){
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
 	uint8_t threshold = 12;
-	for(int j = imageHeight -1; j >= 1; j--){
+	for(int j = imageHeight / 2; j < imageHeight; j++){
 		if(hasRightEdge(j) && !lastHasEdge){
 			lastHasEdge = true;
 			numOfPixel++;
@@ -386,18 +386,18 @@ int numOfRCorner(){
 		if(!lastHasRCorner)
 			lastHasRCorner = true;
 		rCounter++;
-		if(rCounter == 4 && rCorner == 0){
+		if(rCounter == 6 && rCorner == 0){
 			lastRCornerTime = System::Time();
 			rCorner++;
 		}
-		else if(rCounter == 4 && rCorner == 1){
-			if(System::Time() - lastRCornerTime >= 500){
+		else if(rCounter == 6 && rCorner == 1){
+			if(System::Time() - lastRCornerTime <= 5000){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
 		}
 		else if(rCounter == 2 && rCorner == 2) {
-			if(System::Time() - lastRCornerTime >= 2500){
+			if(System::Time() - lastRCornerTime >= 5500){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
@@ -411,7 +411,7 @@ int numOfRCorner(){
 	}else{
 		lastHasRCorner = false;
 		rCounter = 0;
-		if(System::Time() - lastRCornerTime > 6000 && rCorner < 4){
+		if(System::Time() - lastRCornerTime > 3000 && rCorner <= 2){
 			rCorner = 0;
 		}
 	}
@@ -444,32 +444,24 @@ int main(void)
 	led2.Switch();
 	led3.Switch();
 
-	System::DelayMs(10);
-
 	// LCD Test
 	St7735r lcd(Config::GetLcdConfig());
 	LcdTypewriter writer(Config::GetWriterConfig(&lcd));
 	LcdConsole console(Config::GetConsoleConfig(&lcd));
 	lcd.SetRegion(Lcd::Rect(0,0,128,160));
-	for(int i = 0; i < 10; i++){
-		lcd.SetRegion(Lcd::Rect(0,(i*15),100,15));
-		writer.WriteString("LCDTESTING!!!");
-	}
-	System::DelayMs(200);
 	lcd.Clear();
 
-
+	// Encoder init
+	DirEncoder dirEncoder(Config::GetEncoderConfig());
 	// Motor init
 	AlternateMotor motor(Config::GetMotorConfig());
-	motor.SetPower(0); // 10 %
 	motor.SetClockwise(true);
-//	motorPID mPID(0.21, 0.000012, 0.00000007);
-	motorPID mPID(0.265, 0.0, 0.01);
+//	motorPID mPID(0.04, 0.0000, 0.000005);
+	motorPID mPID(0.024, 0.0, 12, &dirEncoder);
 
 	// Servo init
 	Servo servo(Config::GetServoConfig());
-	System::DelayMs(470);
-	servoPID sPID(1.35,0.0,0.00);
+	servoPID sPID(1.40,0.0,0.00);
 
 	// Battery Meter init
 	BatteryMeter bMeter(Config::GetBatteryMeterConfig());
@@ -482,14 +474,14 @@ int main(void)
 //			clockwise = !clockwise;
 //	})));
 
-	// Encoder init
-	DirEncoder dirEncoder(Config::GetEncoderConfig());
+
 
 	// Camera init
 	Ov7725 camera(Config::GetCameraConfig());
 	camera.Start();
 
 	int lastrCorner = 0;
+	motor.SetPower(110); // 10 %
 	while (true){
 		if(System::Time() != previousTime){
 			previousTime = System::Time();
@@ -516,16 +508,17 @@ int main(void)
 				sprintf(c,"voltage: %f", bMeter.GetVoltage());
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,75,128,15));
-				sprintf(c,"angle: %f!", angle);
+				sprintf(c,"angle: %.2f!", angle);
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,90,128,15));
-				sprintf(c,"L:%d R:%d M:%d", numOfLeftEdge(), numOfRightEdge(), numOfMidLine());
+//				sprintf(c,"L:%d R:%d M:%d", numOfLeftEdge(), numOfRightEdge(), numOfMidLine());
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,105,128,15));
-				uint16_t power = mPID.getPID(1000, &dirEncoder);
-				sprintf(c,"Motor: %d", power);
-				if(power > 350)
-					power = 350;
+
+				int encoderCount = dirEncoder.GetCount();
+				float power = motor.GetPower() + mPID.getPID(350, encoderCount);
+				sprintf(c,"Motor: %.2f", power);
+
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,120,128,15));
 				sprintf(c,"Encoder: %d", dirEncoder.GetCount());
@@ -541,9 +534,6 @@ int main(void)
 				writer.WriteBuffer(c,15);
 
 				servo.SetDegree((uint16_t)((angle * 10) + middleServo));
-				if(numOfCorner == 1){
-					power = mPID.getPID(250, &dirEncoder);
-				}
 				if(numOfCorner == 2){
 					if(circleCounter >= 3 && circleCounter <= 10)
 						servo.SetDegree((uint16_t) middleServo - 550);
@@ -562,7 +552,12 @@ int main(void)
 					circleCounter = 0;
 				}
 //				servo.SetDegree((uint16_t)middleServo);
-				motor.SetPower(power);
+				if(power > 500)
+					power = 500;
+				if(power < 0){
+					power = 0;
+				}
+				motor.SetPower((uint16_t)power);
 			}
 		}
 	}

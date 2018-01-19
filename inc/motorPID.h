@@ -14,8 +14,8 @@ using libsc::DirEncoder;
 using libsc::System;
 class motorPID {
 public:
-	motorPID(float KP, float KI, float KD):kP(KP),kI(KI),kD(KD){};
-	uint16_t getPID(int32_t desiredVelocity, DirEncoder *);
+	motorPID(float KP, float KI, float KD, DirEncoder* Encoder):kP(KP),kI(KI),kD(KD),encoder(Encoder){};
+	float getPID(int32_t desiredVelocity, int32_t encoderCount);
 	virtual ~motorPID();
 private:
 	float kP = 0.0;
@@ -26,6 +26,7 @@ private:
 	int32_t accumlateError = 0;
 	int32_t lastError = 0;
 	int32_t currentError = 0;
+	DirEncoder * encoder;
 };
 
 #endif /* MOTORPID_H_ */
