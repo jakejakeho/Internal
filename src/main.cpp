@@ -95,17 +95,26 @@ void imageRead(const Byte* buff){
 		}
 	}
 }
+float fsqrt(float x){
+	unsigned int i = *(unsigned int*) &x;
+	// adjust bias
+	i  += 127 << 23;
+	// approximation of square root
+	i >>= 1;
+	return *(float*) &i;
+}
 
 void edgeDetection(void){
 	for(int j = imageHeight - 2; j >= 1; j--){
 		for(int i = 1; i < imageWidth - 1; i++){
-			edgeImage[j][i] = (sqrt(pow(image[j - 1][i - 1] + 2 * image[j][i - 1] + image[j + 1][i - 1]        // +1 +2 +1
+			edgeImage[j][i] = (fsqrt(pow(image[j - 1][i - 1] + 2 * image[j][i - 1] + image[j + 1][i - 1]        // +1 +2 +1
 									 - image[j - 1][i + 1] - 2 * image[j][i + 1] - image[j + 1][i + 1], 2)    // -1 -2 -1
 								 + pow(image[j - 1][i - 1] + 2 * image[j - 1][i] + image[j - 1][i + 1]   	  // +1 +2 +1
 									 - image[j + 1][i - 1] - 2 * image[j + 1][i] - image[j + 1][i + 1], 2))) != 0 ? 1 : 0;  // -1 -2 -1
 		}
 	}
 }
+
 
 void edgeDisplay(St7735r* lcd){
 	for(int j = imageHeight - 1; j >= 1; j--){
@@ -301,7 +310,7 @@ void midPointDisplay(St7735r *lcd){
 }
 
 bool hasLeftEdge(uint8_t height){
-	for(int i = 0; i <= imageWidth / 2; i++){
+	for(int i = imageWidth / 2; i >= 0; i++){
 		if(edgeImage[height][i]){
 			return true;
 		}
@@ -323,15 +332,17 @@ uint8_t numOfLeftEdge(){
 			numOfPixel = 0;
 		}else if(hasLeftEdge(j) && lastHasEdge){
 			numOfPixel++;
-			if(numOfPixel == threshold)
+			if(numOfPixel == threshold){
 				numOfMidLine++;
+				break;
+			}
 		}
 	}
 	return numOfMidLine;
 }
 
 bool hasRightEdge(uint8_t height){
-	for(int i = imageWidth - 1; i >= imageWidth / 2; i--){
+	for(int i = imageWidth / 2; i < imageWidth; i++){
 		if(edgeImage[height][i]){
 			return true;
 		}
@@ -353,8 +364,10 @@ uint8_t numOfRightEdge(){
 			numOfPixel = 0;
 		}else if(hasRightEdge(j) && lastHasEdge){
 			numOfPixel++;
-			if(numOfPixel == threshold)
+			if(numOfPixel == threshold){
 				numOfMidLine++;
+				break;
+			}
 		}
 	}
 	return numOfMidLine;
@@ -374,8 +387,10 @@ uint8_t numOfMidLine(){
 			numOfPixel = 0;
 		}else if(midPoint[j] != 81 && lastHasEdge){
 			numOfPixel++;
-			if(numOfPixel == threshold)
+			if(numOfPixel == threshold){
 				numOfMidLine++;
+				break;
+			}
 		}
 	}
 	return numOfMidLine;
