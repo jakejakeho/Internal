@@ -27,6 +27,8 @@
 #include "libsc/battery_meter.h"
 #include "libsc/button.h"
 #include "libsc/dir_encoder.h"
+#include "libbase/k60/adc.h"
+#include "libbase/k60/pin.h"
 
 using libsc::Led;
 using libsc::Lcd;
@@ -45,6 +47,8 @@ using libsc::Servo;
 using libsc::BatteryMeter;
 using libsc::Button;
 using libsc::DirEncoder;
+using libbase::k60::Adc;
+using libbase::k60::Pin;
 
 class Config{
 public:
@@ -140,6 +144,24 @@ public:
     static DirEncoder::Config GetEncoderConfig(){
     	DirEncoder::Config config;
     	config.id = 0;
+    	return config;
+    }
+
+    static Adc::Config GetAdc1Config(){
+    	Adc::Config config;
+    	config.pin = Pin::Name::kPtc10;
+    	config.speed = Adc::Config::SpeedMode::kExSlow;
+    	config.is_continuous_mode = true;
+    	config.avg_pass = Adc::Config::AveragePass::k32;
+    	return config;
+    }
+
+    static Adc::Config GetAdc2Config(){
+    	Adc::Config config;
+    	config.pin = Pin::Name::kPtc11;
+    	config.speed = Adc::Config::SpeedMode::kExSlow;
+    	config.is_continuous_mode = true;
+    	config.avg_pass = Adc::Config::AveragePass::k32;
     	return config;
     }
 };

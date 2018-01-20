@@ -55,6 +55,9 @@ static int rCorner = 0;
 static int circleCounter = 0;
 static uint32_t lastRCornerTime = 0;
 static bool clockwise = true;
+static uint16_t leftMagnetic = 0;
+static uint16_t rightMagnetic = 0;
+static uint16_t lastServo = 0;
 // function prototype
 void imageRead(const Byte* buff);
 void edgeDetection();
@@ -394,12 +397,12 @@ int numOfRCorner(){
 		if(!lastHasRCorner)
 			lastHasRCorner = true;
 		rCounter++;
-		if(rCounter == 6 && rCorner == 0){
+		if(rCounter == 7 && rCorner == 0){
 			lastRCornerTime = System::Time();
 			rCorner++;
 		}
-		else if(rCounter == 3 && rCorner == 1){
-			if(System::Time() - lastRCornerTime <= 5000){
+		else if(rCounter == 4 && rCorner == 1){
+			if(System::Time() - lastRCornerTime >= 3000){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
@@ -439,12 +442,12 @@ int main(void)
 	motor.SetClockwise(true);
 //	motorPID mPID(0.024, 0.0, 12, &dirEncoder);
 //	motorPID mPID(0.009, 0.00000035, 0.00000003, &dirEncoder);
-	motorPID mPID(0.01, 0.00000000002, 3.75, &dirEncoder);
+	motorPID mPID(0.01, 0.00000012, 7.35, &dirEncoder);
 
 	// Servo init
 	Servo servo(Config::GetServoConfig());
 	servo.SetDegree(middleServo);
-	servoPID sPID(1.3325, 0.0, 6.536);
+	servoPID sPID(1.41, 0.0, 8.536);
 	uint32_t previousTime = 0;
 
 
@@ -487,6 +490,9 @@ int main(void)
 //	})));
 
 
+	// adc1 init
+	Adc adc1(Config::GetAdc1Config());
+	Adc adc2(Config::GetAdc2Config());
 
 	// Camera init
 	Ov7725 camera(Config::GetCameraConfig());
@@ -494,10 +500,14 @@ int main(void)
 
 	int lastrCorner = 0;
 	motor.SetPower(110); // 10 %
+
 	while (true){
 		if(System::Time() != previousTime){
 			previousTime = System::Time();
-			if(previousTime % 16 == 0 && camera.IsAvailable()){
+			if(previousTime % 5 == 0 && camera.IsAvailable()){
+				leftMagnetic = adc1.GetResult();
+				rightMagnetic = adc2.GetResult();
+
 				// Image read from camera
 				led0.Switch();
 				const Byte* buff = camera.LockBuffer();
@@ -506,32 +516,58 @@ int main(void)
 				bool enableDisplay = false;
 				char c[15];
 				edgeDetection();
-				findMidPoint();
+//				findMidPoint();
 				if(enableDisplay){
 					lcd.SetRegion(Lcd::Rect(0,0,imageWidth,imageHeight));
 					lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
 					edgeDisplay(&lcd);
 					midPointDisplay(&lcd);
 				}
+				int encoderCount = dirEncoder.GetCount();
+				float power;
 
-
-				float angle = sPID.getPID(getAngle(), previousTime);
+				float angle;
+				if(leftMagnetic >= 30 || rightMagnetic >= 30){
+					angle = sPID.getPID(leftMagnetic - rightMagnetic + 0.0, previousTime);
+					power = motor.GetPower() + mPID.getPID(250, encoderCount);
+				}
+				else{
+					angle = sPID.getPID(getAngle(), previousTime);
+					if(abs(servo.GetDegree() - middleServo) > 25){
+						 power = motor.GetPower() + mPID.getPID(360, encoderCount);
+					}else{
+						 power = motor.GetPower() + mPID.getPID(490, encoderCount);
+					}
+				}
+				if(numOfLeftEdge() <= 0 && numOfRightEdge() <= 0){
+					servo.SetDegree(lastServo);
+				}else{
+					servo.SetDegree((uint16_t)(angle * 10 + middleServo));
+				}
 				lcd.SetRegion(Lcd::Rect(0,60,128,15));
 				sprintf(c,"voltage: %f", bMeter.GetVoltage());
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,75,128,15));
-				sprintf(c,"angle: %.2f!", angle);
+				sprintf(c,"adc1: %d!", adc1.GetResult());
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,90,128,15));
 //				sprintf(c,"L:%d R:%d M:%d", numOfLeftEdge(), numOfRightEdge(), numOfMidLine());
+				sprintf(c,"adc2: %d", adc2.GetResult());
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,105,128,15));
 
-				int encoderCount = dirEncoder.GetCount();
-				float power = motor.GetPower() + mPID.getPID(400, encoderCount);
-				sprintf(c,"Power: %d", motor.GetPower());
 
+
+				sprintf(c,"angle: %f", angle);
+				if(power > 500)
+					power = 500;
+				if(power < 0){
+					power = 0;
+				}
 				writer.WriteBuffer(c,15);
+				motor.SetPower((uint16_t)power);
+
+
 				lcd.SetRegion(Lcd::Rect(0,120,128,15));
 				sprintf(c,"Encoder: %d", dirEncoder.GetCount());
 				writer.WriteBuffer(c,15);
@@ -545,31 +581,26 @@ int main(void)
 //				}
 				writer.WriteBuffer(c,15);
 
-				servo.SetDegree((uint16_t)(angle * 10 + middleServo));
-				if(numOfCorner == 2){
-					if(circleCounter >= 3 && circleCounter <= 10)
-						servo.SetDegree((uint16_t) middleServo - 550);
-					circleCounter++;
-				}else if (numOfCorner == 3){
-					if(circleCounter <= 8)
-						servo.SetDegree((uint16_t) middleServo - 620);
-					circleCounter++;
-				}else if (numOfCorner == 4){
-					if(circleCounter <= 12)
-						servo.SetDegree((uint16_t) middleServo + 375);
-					circleCounter++;
-				}
-				if(lastrCorner != numOfCorner){
-					lastrCorner = numOfCorner;
-					circleCounter = 0;
-				}
+
+//				if(numOfCorner == 2){
+//					if(circleCounter <= 10)
+//						servo.SetDegree((uint16_t) middleServo - 700);
+//					circleCounter++;
+//				}else if (numOfCorner == 3){
+//					if(circleCounter <= 8)
+//						servo.SetDegree((uint16_t) middleServo - 620);
+//					circleCounter++;
+//				}else if (numOfCorner == 4){
+//					if(circleCounter <= 12)
+//						servo.SetDegree((uint16_t) middleServo + 375);
+//					circleCounter++;
+//				}
+//				if(lastrCorner != numOfCorner){
+//					lastrCorner = numOfCorner;
+//					circleCounter = 0;
+//				}
 //				servo.SetDegree((uint16_t)middleServo);
-				if(power > 500)
-					power = 500;
-				if(power < 0){
-					power = 0;
-				}
-				motor.SetPower((uint16_t)power);
+				lastServo = servo.GetDegree();
 			}
 		}
 	}
