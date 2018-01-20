@@ -95,19 +95,12 @@ void imageRead(const Byte* buff){
 		}
 	}
 }
-float fsqrt(float x){
-	unsigned int i = *(unsigned int*) &x;
-	// adjust bias
-	i  += 127 << 23;
-	// approximation of square root
-	i >>= 1;
-	return *(float*) &i;
-}
+
 
 void edgeDetection(void){
 	for(int j = imageHeight - 2; j >= 1; j--){
 		for(int i = 1; i < imageWidth - 1; i++){
-			edgeImage[j][i] = (fsqrt(pow(image[j - 1][i - 1] + 2 * image[j][i - 1] + image[j + 1][i - 1]        // +1 +2 +1
+			edgeImage[j][i] = (sqrt(pow(image[j - 1][i - 1] + 2 * image[j][i - 1] + image[j + 1][i - 1]        // +1 +2 +1
 									 - image[j - 1][i + 1] - 2 * image[j][i + 1] - image[j + 1][i + 1], 2)    // -1 -2 -1
 								 + pow(image[j - 1][i - 1] + 2 * image[j - 1][i] + image[j - 1][i + 1]   	  // +1 +2 +1
 									 - image[j + 1][i - 1] - 2 * image[j + 1][i] - image[j + 1][i + 1], 2))) != 0 ? 1 : 0;  // -1 -2 -1
@@ -405,7 +398,7 @@ int numOfRCorner(){
 			lastRCornerTime = System::Time();
 			rCorner++;
 		}
-		else if(rCounter == 6 && rCorner == 1){
+		else if(rCounter == 3 && rCorner == 1){
 			if(System::Time() - lastRCornerTime <= 5000){
 				lastRCornerTime = System::Time();
 				rCorner++;
@@ -436,8 +429,22 @@ int numOfRCorner(){
 
 int main(void)
 {
+
 	System::Init();
 
+	// Encoder init
+	DirEncoder dirEncoder(Config::GetEncoderConfig());
+	// Motor init
+	AlternateMotor motor(Config::GetMotorConfig());
+	motor.SetClockwise(true);
+//	motorPID mPID(0.024, 0.0, 12, &dirEncoder);
+//	motorPID mPID(0.009, 0.00000035, 0.00000003, &dirEncoder);
+	motorPID mPID(0.01, 0.00000000002, 3.75, &dirEncoder);
+
+	// Servo init
+	Servo servo(Config::GetServoConfig());
+	servo.SetDegree(middleServo);
+	servoPID sPID(1.3325, 0.0, 6.536);
 	uint32_t previousTime = 0;
 
 
@@ -466,17 +473,7 @@ int main(void)
 	lcd.SetRegion(Lcd::Rect(0,0,128,160));
 	lcd.Clear();
 
-	// Encoder init
-	DirEncoder dirEncoder(Config::GetEncoderConfig());
-	// Motor init
-	AlternateMotor motor(Config::GetMotorConfig());
-	motor.SetClockwise(true);
-//	motorPID mPID(0.04, 0.0000, 0.000005);
-	motorPID mPID(0.024, 0.0, 12, &dirEncoder);
 
-	// Servo init
-	Servo servo(Config::GetServoConfig());
-	servoPID sPID(1.40,0.0,0.00);
 
 	// Battery Meter init
 	BatteryMeter bMeter(Config::GetBatteryMeterConfig());
@@ -531,8 +528,8 @@ int main(void)
 				lcd.SetRegion(Lcd::Rect(0,105,128,15));
 
 				int encoderCount = dirEncoder.GetCount();
-				float power = motor.GetPower() + mPID.getPID(350, encoderCount);
-				sprintf(c,"Motor: %.2f", power);
+				float power = motor.GetPower() + mPID.getPID(400, encoderCount);
+				sprintf(c,"Power: %d", motor.GetPower());
 
 				writer.WriteBuffer(c,15);
 				lcd.SetRegion(Lcd::Rect(0,120,128,15));
@@ -548,7 +545,7 @@ int main(void)
 //				}
 				writer.WriteBuffer(c,15);
 
-				servo.SetDegree((uint16_t)((angle * 10) + middleServo));
+				servo.SetDegree((uint16_t)(angle * 10 + middleServo));
 				if(numOfCorner == 2){
 					if(circleCounter >= 3 && circleCounter <= 10)
 						servo.SetDegree((uint16_t) middleServo - 550);
