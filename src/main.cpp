@@ -57,7 +57,12 @@ static uint32_t lastRCornerTime = 0;
 static bool clockwise = true;
 static uint16_t leftMagnetic = 0;
 static uint16_t rightMagnetic = 0;
-static uint16_t lastServo = 0;
+static float lastAngle = 0;
+static uint8_t numOfLeftEdge = 0;
+static uint8_t numOfRightEdge = 0;
+static float lastOutput = 0.0;
+static uint8_t numOfError = 0;
+static uint8_t magneticCounter = 0;
 // function prototype
 void imageRead(const Byte* buff);
 void edgeDetection();
@@ -125,11 +130,11 @@ void edgeDisplay(St7735r* lcd){
 
 float getAngle(){
 	int leftx = 0;
-	int lefty = 0;
-	int rightx = 0;
-	int righty = 0;
+	int lefty = imageHeight - 1;
+	int rightx = imageWidth - 1;
+	int righty = imageHeight - 1;
 	for(int j = imageHeight - 1; j >= 0; j--) {
-		for(int i = 0; i < imageWidth / 2; i++) {
+		for(int i = imageWidth / 2; i >= 0 ; i--) {
 			if(edgeImage[j][i]) {
 				leftx = i;
 				lefty = j;
@@ -139,8 +144,8 @@ float getAngle(){
 		}
 	}
 	for(int j = imageHeight - 1; j >= 0; j--) {
-		for(int i = imageWidth - 1; i > imageWidth / 2; i--) {
-			if(image[j][i]) {
+		for(int i = imageWidth / 2; i < imageWidth; i++) {
+			if(edgeImage[j][i]) {
 				rightx = i;
 				righty = j;
 				j = -1;
@@ -150,111 +155,16 @@ float getAngle(){
 	}
     double angle_left = atan((imageHeight - lefty) / sqrt(pow(leftx - imageWidth / 2, 2) + pow(lefty - imageHeight, 2)));
     double angle_right = atan((imageHeight - righty) / sqrt(pow(rightx - imageWidth / 2, 2) + pow(righty - imageHeight, 2)));
-	return (angle_left - angle_right) * 57.2957795131;
-}
-
-void cornerDetection(void){
-	uint8_t kernel[5][5] = {{0,-1,2,1,0},
-							{-1,-2,4,2,1},
-							{-2,-4,8,4,2},
-							{1,2,-4,-2,-1},
-							{0,1,-2,-1,0}};
-	uint8_t offset = 5/2;
-	uint8_t min = 18;
-	uint8_t max = 24;
-	numOfCorner = 0;
-	for(int j = imageHeight - offset; j >= offset; j--){
-		for(int i = offset; i <imageWidth - offset; i++){
-			if(edgeImage[j][i]){
-				int temp = 0;
-				for(int y = 0 - offset; y <= offset; y++){
-					for(int x = 0 - offset; x <= offset; x++){
-						temp += edgeImage[j + y][i + x] * kernel[offset + y][offset + x];
-					}
-				}
-				if(temp >= min && temp <= max){
-					edgeImage[j][i] = 1;
-					numOfCorner++;
-				}else{
-					edgeImage[j][i] = 0;
-				}
-
-			}
-		}
-	}
-
-}
-
-void cornerDetection2(){
-	int differenceTh = 25;
-		int geometricalTh = 18;
-		int rowRadius[] = { 1, 2, 3, 3, 3, 2, 1 };
-		uint8_t susanMap[imageHeight][imageWidth] = {0};
-		 for (int x = 3; x < imageHeight - 3; x++) {
-			 for (int y = 3; y < imageWidth - 3; y++) {
-				 int nucleusValue = (int)image[x][y];
-				 int usan = 0;
-				 int cx = 0, cy = 0;
-				 for (int i = -3; i <= 3; i++) {
-					 int r = rowRadius[i + 3];
-					 for ( int j = -r; j <= r; j++ ){
-						 int gray = image[x+i][y+j];
-						 // differenceThreshold
-						 if ( abs( nucleusValue - gray ) <= differenceTh ){
-							 usan++;
-							 cx += x + j;
-							 cy += y + i;
-						 }
-					 }
-				 }
-
-				 // check usan size
-				 if ( usan < geometricalTh ){
-					 cx /= usan;
-					 cy /= usan;
-					 if ( ( x != cx ) || ( y != cy ) ){
-						 usan = ( geometricalTh - usan );
-					 }
-					 else{
-						 usan = 0;
-					 }
-				 }
-				 else{
-					 usan = 0;
-				 }
-
-				 // usan = ( usan < geometricalThreshold ) ? ( geometricalThreshold - usan ) : 0;
-				 susanMap[x][y] = usan;
-			 }
-		 }
-
-		 // for each row
-		 for ( int x = 2; x < imageHeight - 2; x++ ){
-			 // for each pixel
-			 for ( int y = 2; y < imageWidth - 2; y++ ){
-				 int currentValue = susanMap[x][y];
-
-				 // for each windows' row
-				 for ( int i = -2; ( currentValue != 0 ) && ( i <= 2 ); i++ ){
-					 // for each windows' pixel
-					 for ( int j = -2; j <= 2; j++ ){
-						 if ( susanMap[x+i][y+j] > currentValue ){
-							 currentValue = 0;
-							 break;
-						 }
-					 }
-				 }
-
-				 // check if this point is really interesting
-				 // check if all the pixel around is all white or black
-				 if ( currentValue != 0){
-						cornerImage[x][y] = 1;
-						numOfCorner++;
-				 }else{
-					 cornerImage[x][y] = 0;
-				 }
-			 }
-		 }
+    float output = (angle_left - angle_right) * 57.2957795131;
+    if(abs(lastOutput - output) >= 70){
+    	numOfError++;
+    	if(numOfError <= 2)
+    		output = lastOutput;
+    }else{
+    	numOfError = 0;
+    }
+    lastOutput = output;
+	return output;
 }
 
 void cornerDisplay(St7735r* lcd){
@@ -314,7 +224,7 @@ bool hasLeftEdge(uint8_t height){
 	return false;
 }
 
-uint8_t numOfLeftEdge(){
+void numOfLEdge(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
@@ -334,7 +244,7 @@ uint8_t numOfLeftEdge(){
 			}
 		}
 	}
-	return numOfMidLine;
+	numOfLeftEdge = numOfMidLine;
 }
 
 bool hasRightEdge(uint8_t height){
@@ -346,7 +256,7 @@ bool hasRightEdge(uint8_t height){
 	return false;
 }
 
-uint8_t numOfRightEdge(){
+void numOfREdge(){
 	bool lastHasEdge = false;
 	uint8_t numOfMidLine = 0;
 	uint8_t numOfPixel = 0;
@@ -366,7 +276,7 @@ uint8_t numOfRightEdge(){
 			}
 		}
 	}
-	return numOfMidLine;
+	numOfRightEdge = numOfMidLine;
 }
 
 uint8_t numOfMidLine(){
@@ -393,22 +303,22 @@ uint8_t numOfMidLine(){
 }
 
 int numOfRCorner(){
-	if(numOfLeftEdge() == 1 && numOfRightEdge() == 0 && numOfMidLine() == 0){
+	if(numOfLeftEdge == 1 && numOfRightEdge == 0 && numOfMidLine() == 0){
 		if(!lastHasRCorner)
 			lastHasRCorner = true;
 		rCounter++;
-		if(rCounter == 7 && rCorner == 0){
+		if(rCounter == 4 && rCorner == 0){
 			lastRCornerTime = System::Time();
 			rCorner++;
 		}
 		else if(rCounter == 4 && rCorner == 1){
-			if(System::Time() - lastRCornerTime >= 3000){
+			if(System::Time() - lastRCornerTime <= 5000){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
 		}
 		else if(rCounter == 2 && rCorner == 2) {
-			if(System::Time() - lastRCornerTime >= 5500){
+			if(System::Time() - lastRCornerTime >= 3000 && System::Time() - lastRCornerTime <= 6000){
 				lastRCornerTime = System::Time();
 				rCorner++;
 			}
@@ -442,12 +352,14 @@ int main(void)
 	motor.SetClockwise(true);
 //	motorPID mPID(0.024, 0.0, 12, &dirEncoder);
 //	motorPID mPID(0.009, 0.00000035, 0.00000003, &dirEncoder);
-	motorPID mPID(0.01, 0.00000012, 7.35, &dirEncoder);
+//	motorPID mPID(0.01, 0.00000012, 7.35, &dirEncoder);
+	motorPID mPID(0.011, 0.00000012, 7.35, &dirEncoder);
 
 	// Servo init
 	Servo servo(Config::GetServoConfig());
 	servo.SetDegree(middleServo);
-	servoPID sPID(1.41, 0.0, 8.536);
+//	servoPID sPID(1.41, 0.0, 8.536);
+	servoPID sPID(1.4, 0.0, 66.01);
 	uint32_t previousTime = 0;
 
 
@@ -504,84 +416,80 @@ int main(void)
 	while (true){
 		if(System::Time() != previousTime){
 			previousTime = System::Time();
-			if(previousTime % 5 == 0 && camera.IsAvailable()){
+			if(previousTime % 1 == 0 && camera.IsAvailable()){
 				leftMagnetic = adc1.GetResult();
 				rightMagnetic = adc2.GetResult();
 
 				// Image read from camera
-				led0.Switch();
 				const Byte* buff = camera.LockBuffer();
 				imageRead(buff);
 				camera.UnlockBuffer();
 				bool enableDisplay = false;
 				char c[15];
 				edgeDetection();
+				numOfLEdge();
+				numOfREdge();
 //				findMidPoint();
+
+				int encoderCount = dirEncoder.GetCount();
+				float power;
+
+				float angle;
+				if(leftMagnetic >= 32 || rightMagnetic >= 30){
+					angle = sPID.getPID((leftMagnetic - rightMagnetic) * 1.08, previousTime);
+					power = motor.GetPower() + mPID.getPID(130, encoderCount);
+					servo.SetDegree((uint16_t)(angle * 10 + middleServo));
+				}
+				else{
+					if(numOfLeftEdge != 1 && numOfRightEdge != 1){
+						angle = sPID.getPID(lastAngle, previousTime);
+					}else{
+						angle = sPID.getPID(getAngle(), previousTime);
+					}
+					if(abs(angle) > 25){
+						 power = motor.GetPower() + mPID.getPID(185, encoderCount);
+					}else{
+						 power = motor.GetPower() + mPID.getPID(240, encoderCount);
+					}
+					servo.SetDegree((uint16_t)(angle * 10 + middleServo));
+				}
+				if(power > 300)
+					power = 300;
+				if(power < 0){
+					power = 0;
+				}
+				motor.SetPower((uint16_t)power);
 				if(enableDisplay){
 					lcd.SetRegion(Lcd::Rect(0,0,imageWidth,imageHeight));
 					lcd.FillBits(0x0000, 0xFFFF, buff, imageWidth * imageHeight);
 					edgeDisplay(&lcd);
 					midPointDisplay(&lcd);
+					lcd.SetRegion(Lcd::Rect(0,60,128,15));
+					sprintf(c,"voltage: %f", bMeter.GetVoltage());
+					writer.WriteBuffer(c,15);
+					lcd.SetRegion(Lcd::Rect(0,75,128,15));
+					sprintf(c,"adc1: %d!", adc1.GetResult());
+					writer.WriteBuffer(c,15);
+					lcd.SetRegion(Lcd::Rect(0,90,128,15));
+//					sprintf(c,"L:%d R:%d M:%d", numOfLeftEdge(), numOfRightEdge(), numOfMidLine());
+					sprintf(c,"adc2: %d", adc2.GetResult());
+					writer.WriteBuffer(c,15);
+					lcd.SetRegion(Lcd::Rect(0,105,128,15));
+					sprintf(c,"angle: %f", angle);
+					writer.WriteBuffer(c,15);
+					lcd.SetRegion(Lcd::Rect(0,120,128,15));
+					sprintf(c,"Encoder: %d", encoderCount);
+					writer.WriteBuffer(c,15);
+					lcd.SetRegion(Lcd::Rect(0,135,128,15));
+					if(clockwise){
+						sprintf(c,"Corner: %d",numOfRCorner());
+						numOfCorner = rCorner;
+					}//else {
+	//					sprintf(c,"Lcorner: %d",numOfRCorner());
+	//					numOfCorner = lCorner;
+	//				}
+					writer.WriteBuffer(c,15);
 				}
-				int encoderCount = dirEncoder.GetCount();
-				float power;
-
-				float angle;
-				if(leftMagnetic >= 30 || rightMagnetic >= 30){
-					angle = sPID.getPID(leftMagnetic - rightMagnetic + 0.0, previousTime);
-					power = motor.GetPower() + mPID.getPID(250, encoderCount);
-				}
-				else{
-					angle = sPID.getPID(getAngle(), previousTime);
-					if(abs(servo.GetDegree() - middleServo) > 25){
-						 power = motor.GetPower() + mPID.getPID(360, encoderCount);
-					}else{
-						 power = motor.GetPower() + mPID.getPID(490, encoderCount);
-					}
-				}
-				if(numOfLeftEdge() <= 0 && numOfRightEdge() <= 0){
-					servo.SetDegree(lastServo);
-				}else{
-					servo.SetDegree((uint16_t)(angle * 10 + middleServo));
-				}
-				lcd.SetRegion(Lcd::Rect(0,60,128,15));
-				sprintf(c,"voltage: %f", bMeter.GetVoltage());
-				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,75,128,15));
-				sprintf(c,"adc1: %d!", adc1.GetResult());
-				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,90,128,15));
-//				sprintf(c,"L:%d R:%d M:%d", numOfLeftEdge(), numOfRightEdge(), numOfMidLine());
-				sprintf(c,"adc2: %d", adc2.GetResult());
-				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,105,128,15));
-
-
-
-				sprintf(c,"angle: %f", angle);
-				if(power > 500)
-					power = 500;
-				if(power < 0){
-					power = 0;
-				}
-				writer.WriteBuffer(c,15);
-				motor.SetPower((uint16_t)power);
-
-
-				lcd.SetRegion(Lcd::Rect(0,120,128,15));
-				sprintf(c,"Encoder: %d", dirEncoder.GetCount());
-				writer.WriteBuffer(c,15);
-				lcd.SetRegion(Lcd::Rect(0,135,128,15));
-				if(clockwise){
-					sprintf(c,"Corner: %d",numOfRCorner());
-					numOfCorner = rCorner;
-				}//else {
-//					sprintf(c,"Lcorner: %d",numOfRCorner());
-//					numOfCorner = lCorner;
-//				}
-				writer.WriteBuffer(c,15);
-
-
 //				if(numOfCorner == 2){
 //					if(circleCounter <= 10)
 //						servo.SetDegree((uint16_t) middleServo - 700);
@@ -595,12 +503,15 @@ int main(void)
 //						servo.SetDegree((uint16_t) middleServo + 375);
 //					circleCounter++;
 //				}
-//				if(lastrCorner != numOfCorner){
-//					lastrCorner = numOfCorner;
-//					circleCounter = 0;
-//				}
+				if(lastrCorner != numOfCorner){
+					lastrCorner = numOfCorner;
+					circleCounter = 0;
+				}
 //				servo.SetDegree((uint16_t)middleServo);
-				lastServo = servo.GetDegree();
+				lastAngle = angle;
+				lcd.SetRegion(Lcd::Rect(0,120,128,15));
+				sprintf(c,"Encoder: %d", encoderCount);
+				writer.WriteBuffer(c,15);
 			}
 		}
 	}

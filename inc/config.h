@@ -106,7 +106,7 @@ public:
     	config.id = 0;
     	config.w = 80;
     	config.h = 60;
-    	//config.contrast = 64;
+    	config.contrast = 74;
     	config.fps = Ov7725Configurator::Config::Fps::kHigh;
     	return config;
     }
